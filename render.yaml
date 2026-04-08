@@ -2,6 +2,7 @@ services:
   - type: web
     name: pittu-music-api
     env: python
+    plan: free
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application"
     envVars:
@@ -18,3 +19,4 @@ databases:
   - name: pittu-music-db
     databaseName: pittu_music_db
     user: pittu_user
+    plan: free
