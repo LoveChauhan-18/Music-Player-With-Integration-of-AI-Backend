@@ -1,7 +1,6 @@
 services:
   - type: web
     name: pittu-music-api
-    root: .
     env: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application"
