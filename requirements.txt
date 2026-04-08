@@ -113,7 +113,6 @@ pybtex==0.25.1
 pybtex-docutils==1.0.3
 pycparser==3.0
 pyenchant==3.3.0
-pygame==2.6.1
 Pygments==2.19.2
 PyJWT==2.12.1
 pyparsing==3.3.2
