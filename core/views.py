@@ -179,6 +179,40 @@ class SyncLatestSongsView(APIView):
 
 
 from .utils.youtube_resolver import resolve_youtube_audio
+from .utils.podcast_fetcher import fetch_youtube_podcasts
+from .utils.cartoon_fetcher import fetch_youtube_cartoons
+from .utils.anime_fetcher import fetch_youtube_anime
+
+class PodcastListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            podcasts = fetch_youtube_podcasts()
+            return Response(podcasts)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class CartoonListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            cartoons = fetch_youtube_cartoons()
+            return Response(cartoons)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class AnimeListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            anime = fetch_youtube_anime()
+            return Response(anime)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 
 class ResolveAudioView(APIView):
     permission_classes = [AllowAny]
