@@ -8,14 +8,44 @@ def fetch_youtube_podcasts():
     Returns a list of podcast metadata objects.
     """
     queries = [
+        # Original Indian
         "The Ranveer Show (BeerBiceps)",
         "Raj Shamani Figuring Out podcast",
         "Dostcast latest",
         "Prakhar ke Pravachan podcast",
         "The Seen and the Unseen podcast",
         "Cyrus Says podcast latest",
-        "Famous Indian Podcasts 2026",
-        "Ranveer Show Hindi clips",
+        "Famous Indian Podcasts",
+        
+        # Tech & Science
+        "Lex Fridman Podcast",
+        "Huberman Lab Podcast",
+        "Waveform MKBHD podcast",
+        "Science Vs podcast",
+        
+        # Business & Finance
+        "My First Million podcast",
+        "The Diary Of A CEO podcast",
+        "How I Built This guy raz",
+        "Finshots Daily podcast",
+        "Business Wars podcast",
+        
+        # Comedy & Entertainment
+        "The Joe Rogan Experience clips",
+        "Conan O'Brien Needs A Friend",
+        "SmartLess podcast",
+        "Zakir Khan comedy podcast",
+        "Kanan Gill podcast",
+        
+        # True Crime & Storytelling
+        "Crime Junkie podcast",
+        "Morbid true crime podcast",
+        "TED Radio Hour",
+        "Stuff You Should Know podcast",
+        
+        # Lifestyle & News
+        "On Purpose with Jay Shetty",
+        "The Daily NYT podcast"
     ]
 
     ydl_opts = {
@@ -43,7 +73,7 @@ def fetch_youtube_podcasts():
             return []
 
     # Use ThreadPoolExecutor for faster concurrent fetching
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         results = list(executor.map(search_query, queries))
 
     for entry_list in results:
@@ -69,4 +99,4 @@ def fetch_youtube_podcasts():
             all_podcasts.append(podcast)
 
     # Sort by views or most recent? Let's keep them somewhat shuffled or sorted by query
-    return all_podcasts[:150] # Limit to 150 for performance
+    return all_podcasts[:300] # Limit to 300 for performance
