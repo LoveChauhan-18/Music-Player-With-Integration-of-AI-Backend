@@ -58,7 +58,8 @@ def fetch_youtube_podcasts():
                 'id': entry.get('id'),
                 'title': entry.get('title'),
                 'artist': entry.get('uploader') or entry.get('channel') or "Unknown Channel",
-                'artwork': f"https://i.ytimg.com/vi/{entry.get('id')}/maxresdefault.jpg",
+                # hqdefault is the reliable standard
+                'artwork': f"https://i.ytimg.com/vi/{entry.get('id')}/hqdefault.jpg",
                 'duration': entry.get('duration') or 0,
                 'url': f"https://www.youtube.com/watch?v={entry.get('id')}",
                 'views': entry.get('view_count') or 0,

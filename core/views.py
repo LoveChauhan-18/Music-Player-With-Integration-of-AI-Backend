@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -7,8 +8,19 @@ User = get_user_model()
 from .serializers import RegisterSerializer, SongSerializer
 from .models import Song
 from .models import Playlist, PlaylistSong
-from .serializers import PlaylistSerializer, PlaylistSongSerializer
+from .serializers import PlaylistSongSerializer
 
+class PlaylistSerializer(serializers.ModelSerializer):
+    songs = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Playlist
+        fields = ['id', 'name', 'songs']
+
+    def get_songs(self, obj):
+        # Fetch actual song objects for the playlist
+        songs = Song.objects.filter(song_playlists__playlist=obj)
+        return SongSerializer(songs, many=True).data
 
 
 class RegisterView(APIView):
@@ -18,8 +30,8 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "User created successfully"})
-        return Response(serializer.errors)
+            return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -44,8 +56,8 @@ class SongListCreateView(APIView):
         serializer = SongSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -66,7 +78,7 @@ class SongDetailView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
-        return Response(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         song = self.get_object(pk)
@@ -78,6 +90,11 @@ class PlaylistView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Auto-initialize default playlists for the user if they don't exist
+        default_playlists = ["Favourites", "Workout Mix", "Chill Vibes", "Late Night Focus"]
+        for pl_name in default_playlists:
+            Playlist.objects.get_or_create(user=request.user, name=pl_name)
+
         playlists = Playlist.objects.filter(user=request.user)
         serializer = PlaylistSerializer(playlists, many=True)
         return Response(serializer.data)
@@ -86,8 +103,8 @@ class PlaylistView(APIView):
         serializer = PlaylistSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user)
-            return Response(serializer.data)
-        return Response(serializer.errors)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 from django.core.management import call_command
@@ -97,11 +114,66 @@ class AddSongToPlaylistView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = PlaylistSongSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Song added to playlist"})
-        return Response(serializer.errors)
+        playlist_id = request.data.get('playlist')
+        song_id = request.data.get('song')
+        song_metadata = request.data.get('song_metadata')
+
+        if not playlist_id or not song_id:
+            return Response({"error": "playlist and song are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Verify playlist belongs to user
+        playlist = Playlist.objects.filter(id=playlist_id, user=request.user).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Resolve song_id to an integer safely
+        try:
+            song_id_int = int(song_id)
+        except (ValueError, TypeError):
+            song_id_int = None
+
+        # 3. Try to find by DB id (local songs have small IDs < 1,000,000)
+        song = None
+        if song_id_int is not None and song_id_int < 1_000_000:
+            song = Song.objects.filter(id=song_id_int).first()
+
+        # 4. Try by external_id (covers iTunes and previously synced songs)
+        if not song:
+            song = Song.objects.filter(external_id=str(song_id)).first()
+
+        # 5. Create the song if metadata is provided (use get_or_create to avoid unique violations)
+        if not song and song_metadata:
+            from .models import Artist
+            artist_name = song_metadata.get('artist', 'Unknown Artist')
+            # artist may be a nested dict for some song types
+            if isinstance(artist_name, dict):
+                artist_name = artist_name.get('name', 'Unknown Artist')
+            artist, _ = Artist.objects.get_or_create(name=artist_name)
+
+            song, _ = Song.objects.get_or_create(
+                external_id=str(song_id),
+                defaults={
+                    'title': song_metadata.get('title', 'Untitled'),
+                    'artist': artist,
+                    'source': song_metadata.get('source', 'itunes'),
+                    # frontend may send previewUrl (iTunes) or preview_url (local)
+                    'preview_url': song_metadata.get('previewUrl') or song_metadata.get('preview_url'),
+                    # frontend may send artwork (iTunes) or artwork_url (local)
+                    'artwork_url': song_metadata.get('artwork') or song_metadata.get('artwork_url'),
+                    'album': song_metadata.get('album'),
+                    'genre': song_metadata.get('genre'),
+                }
+            )
+
+        if not song:
+            return Response({"error": "Song not found and no metadata provided for sync."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 6. Add to playlist (idempotent)
+        if PlaylistSong.objects.filter(playlist=playlist, song=song).exists():
+            return Response({"message": "Song already in playlist"}, status=status.HTTP_200_OK)
+
+        PlaylistSong.objects.create(playlist=playlist, song=song)
+        return Response({"message": "Song added to playlist"}, status=status.HTTP_201_CREATED)
 
 
 class ToggleLikeView(APIView):
@@ -109,44 +181,56 @@ class ToggleLikeView(APIView):
 
     def post(self, request):
         song_id = request.data.get('song_id')
-        song_metadata = request.data.get('song_metadata') # Optional metadata for external songs
-        
+        song_metadata = request.data.get('song_metadata')  # Optional metadata for external songs
+
         if not song_id:
             return Response({"error": "song_id is required"}, status=400)
-        
+
+        # 1. Resolve song_id to an integer safely
+        try:
+            song_id_int = int(song_id)
+        except (ValueError, TypeError):
+            song_id_int = None
+
+        # 2. Try to find by DB id then by external_id
         song = None
-        # 1. Try to find by DB ID or External ID
-        song = Song.objects.filter(id=song_id if isinstance(song_id, int) and song_id < 1000000 else None).first()
+        if song_id_int is not None and song_id_int < 1_000_000:
+            song = Song.objects.filter(id=song_id_int).first()
+
         if not song:
             song = Song.objects.filter(external_id=str(song_id)).first()
 
-        # 2. If not found and metadata provided, CREATE it
+        # 3. If not found and metadata provided, get or create it
         if not song and song_metadata:
             from .models import Artist
             artist_name = song_metadata.get('artist', 'Unknown Artist')
+            if isinstance(artist_name, dict):
+                artist_name = artist_name.get('name', 'Unknown Artist')
             artist, _ = Artist.objects.get_or_create(name=artist_name)
-            
-            song = Song.objects.create(
-                title=song_metadata.get('title', 'Untitled'),
-                artist=artist,
+
+            song, _ = Song.objects.get_or_create(
                 external_id=str(song_id),
-                source=song_metadata.get('source', 'itunes'),
-                preview_url=song_metadata.get('previewUrl'),
-                artwork_url=song_metadata.get('artwork'),
-                album=song_metadata.get('album'),
-                genre=song_metadata.get('genre'),
+                defaults={
+                    'title': song_metadata.get('title', 'Untitled'),
+                    'artist': artist,
+                    'source': song_metadata.get('source', 'itunes'),
+                    'preview_url': song_metadata.get('previewUrl') or song_metadata.get('preview_url'),
+                    'artwork_url': song_metadata.get('artwork') or song_metadata.get('artwork_url'),
+                    'album': song_metadata.get('album'),
+                    'genre': song_metadata.get('genre'),
+                }
             )
 
         if not song:
             return Response({"error": "Song not found and no metadata provided for sync."}, status=404)
 
-        # 3. Toggle Like
+        # 4. Toggle Like
         playlist, _ = Playlist.objects.get_or_create(
-            user=request.user, 
+            user=request.user,
             name="Liked Songs"
         )
         liked_song = PlaylistSong.objects.filter(playlist=playlist, song=song).first()
-        
+
         if liked_song:
             liked_song.delete()
             return Response({"liked": False, "message": "Removed from Liked Songs", "song_id": song.id})
@@ -231,3 +315,4 @@ class ResolveAudioView(APIView):
             return Response({"audio_url": audio_url})
         else:
             return Response({"error": "Could not resolve full audio"}, status=404)
+            

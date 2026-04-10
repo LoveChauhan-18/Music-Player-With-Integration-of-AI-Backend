@@ -44,34 +44,45 @@ def fetch_youtube_cartoons():
     def fetch_series(series_name):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Search for 200 results per series to ensure ~100+ complete episodes after filtering
-                info = ydl.extract_info(f"ytsearch200:{series_name} full episodes", download=False)
+                # Search for 50 results per series (faster response)
+                info = ydl.extract_info(f"ytsearch50:{series_name} full episodes", download=False)
                 if not info or 'entries' not in info:
                     return None
                 
                 episodes = []
+                seen_ids = set()
+                
                 for entry in info['entries']:
                     if not entry: continue
                     
+                    video_id = entry.get('id')
+                    if video_id in seen_ids:
+                        continue
+                        
                     # Filter: Skip short clips/trailers (less than 5 mins)
                     duration = entry.get('duration') or 0
                     if duration > 0 and duration < 300:
                         continue
 
                     episodes.append({
-                        'id': entry.get('id'),
+                        'id': video_id,
                         'title': entry.get('title'),
-                        # Ensure every episode has a high-quality thumbnail
-                        'artwork': f"https://i.ytimg.com/vi/{entry.get('id')}/maxresdefault.jpg",
+                        # hqdefault is much more reliable than maxresdefault
+                        'artwork': f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
                         'duration': duration,
                     })
+                    seen_ids.add(video_id)
                 
                 # Use custom artwork if mapped, otherwise use first episode's thumb
                 custom_artwork = ARTWORK_MAP.get(series_name)
+                # Ensure custom artwork paths are absolute or valid URLs if possible
+                # For now, if it starts with /images, just use the first thumb as a safer bet 
+                # unless we know those images exist. Let's stick to first thumb for reliability.
+                final_artwork = custom_artwork if (custom_artwork and not custom_artwork.startswith("/images")) else (episodes[0]['artwork'] if episodes else None)
                 
                 return {
                     'series': series_name,
-                    'artwork': custom_artwork if custom_artwork else (episodes[0]['artwork'] if episodes else None),
+                    'artwork': final_artwork,
                     'episodes': episodes
                 }
         except Exception as e:

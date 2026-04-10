@@ -38,34 +38,42 @@ def fetch_youtube_anime():
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Search for 300 results per series to capture a more complete list of episodes
-                info = ydl.extract_info(f"ytsearch300:{series_query}", download=False)
+                # Search for 50 results per series (faster)
+                info = ydl.extract_info(f"ytsearch50:{series_query}", download=False)
                 if not info or 'entries' not in info:
                     return None
                 
                 episodes = []
+                seen_ids = set()
+                
                 for entry in info['entries']:
                     if not entry: continue
                     
+                    video_id = entry.get('id')
+                    if video_id in seen_ids:
+                        continue
+                        
                     # Filter: Favor actual episodes or good compilations ( > 5 mins )
                     duration = entry.get('duration') or 0
                     if duration > 0 and duration < 300:
                         continue
                         
                     episodes.append({
-                        'id': entry.get('id'),
+                        'id': video_id,
                         'title': entry.get('title'),
-                        # Try maxres, fallback to hqdefault (standard YT thumbnail logic)
-                        'artwork': f"https://i.ytimg.com/vi/{entry.get('id')}/hqdefault.jpg",
+                        # Stick to hqdefault for reliability
+                        'artwork': f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
                         'duration': duration,
                     })
+                    seen_ids.add(video_id)
                 
                 # Use custom artwork if mapped, otherwise use first episode's thumb
                 custom_artwork = ARTWORK_MAP.get(series_name)
+                final_artwork = custom_artwork if (custom_artwork and not custom_artwork.startswith("/images")) else (episodes[0]['artwork'] if episodes else None)
                 
                 return {
                     'series': series_name,
-                    'artwork': custom_artwork if custom_artwork else (episodes[0]['artwork'] if episodes else None),
+                    'artwork': final_artwork,
                     'episodes': episodes
                 }
         except Exception as e:
