@@ -1,36 +1,25 @@
-import yt_dlp
-import os
+import urllib.request
+import urllib.parse
+import json
 
 def resolve_youtube_audio(query):
     """
     Given a search query (e.g. "Artist - Title"), finds the best matching 
-    video on YouTube and returns a direct audio stream URL.
+    audio stream URL. Now utilizes a reliable JioSaavn API to avoid 
+    YouTube IP restrictions and 403 Forbidden errors on Render.
     """
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'default_search': 'ytsearch',
-        'max_downloads': 1,
-        'nocheckcertificate': True,
-        'ignoreerrors': False,
-        'logtostderr': False,
-        'no_color': True,
-        'extract_flat': False,
-        'skip_download': True,
-        'force_generic_extractor': False,
-    }
-
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Search for the query and extract info
-            info = ydl.extract_info(f"ytsearch1:{query}", download=False)
-            if not info or 'entries' not in info or not info['entries']:
-                return None
-            
-            entry = info['entries'][0]
-            # Get the best audio format URL
-            return entry.get('url')
+        url = f"https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query={urllib.parse.quote(query)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        res = urllib.request.urlopen(req, timeout=8)
+        data = json.loads(res.read())
+        
+        if data and data.get('data') and data['data'].get('results'):
+            song = data['data']['results'][0]
+            if 'downloadUrl' in song and isinstance(song['downloadUrl'], list):
+                highest_quality = song['downloadUrl'][-1]
+                return highest_quality.get('link') or highest_quality.get('url')
     except Exception as e:
-        print(f"Error resolving YouTube audio: {e}")
-        return None
+        print(f"Error resolving full audio: {e}")
+        
+    return None
