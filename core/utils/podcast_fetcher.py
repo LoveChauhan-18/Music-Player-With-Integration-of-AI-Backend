@@ -34,7 +34,7 @@ def fetch_youtube_podcasts():
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Search for 20 results per query to ensure diversity and reach 100+ total
-                info = ydl.extract_info(f"ytsearch20:{q}", download=False)
+                info = ydl.extract_info(f"ytsearch5:{q}", download=False)
                 if not info or 'entries' not in info:
                     return []
                 return info['entries']

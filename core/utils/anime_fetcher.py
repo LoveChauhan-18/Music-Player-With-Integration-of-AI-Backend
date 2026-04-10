@@ -39,7 +39,7 @@ def fetch_youtube_anime():
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Search for 50 results per series (faster)
-                info = ydl.extract_info(f"ytsearch50:{series_query}", download=False)
+                info = ydl.extract_info(f"ytsearch10:{series_query}", download=False)
                 if not info or 'entries' not in info:
                     return None
                 

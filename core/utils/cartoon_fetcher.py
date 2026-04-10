@@ -45,7 +45,7 @@ def fetch_youtube_cartoons():
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Search for 50 results per series (faster response)
-                info = ydl.extract_info(f"ytsearch50:{series_name} full episodes", download=False)
+                info = ydl.extract_info(f"ytsearch10:{series_name} full episodes", download=False)
                 if not info or 'entries' not in info:
                     return None
                 
