@@ -1,6 +1,6 @@
 # Music Player With Integration of AI — Backend 🎵⚙️
 
-Django REST Framework backend for the **Pittu Music Player** — an AI-powered music streaming app.
+Django REST Framework backend for the **Love Music Player** — an AI-powered music streaming app.
 
 ## 🗂️ Project Structure
 
