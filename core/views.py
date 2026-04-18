@@ -26,10 +26,12 @@ class RegisterView(APIView):
                 return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # Diagnostic hint: Check if DATABASE_URL is in the environment
+            # Audit hint: List all environment variable keys (names only)
             import os
-            db_status = "[Env: DB_LINK_FOUND]" if 'DATABASE_URL' in os.environ else "[Env: DB_LINK_MISSING]"
-            return Response({"error": f"{db_status} {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            keys = sorted(os.environ.keys())
+            db_vars = [k for k in keys if 'DB' in k or 'DATABASE' in k or 'POSTGRES' in k or 'URL' in k]
+            audit_msg = f"[Audit Keys: {', '.join(db_vars)}]" if db_vars else "[Audit: No DB keys found]"
+            return Response({"error": f"{audit_msg} {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
