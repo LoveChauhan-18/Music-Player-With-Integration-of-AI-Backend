@@ -7,22 +7,11 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
 User = get_user_model()
-from .serializers import RegisterSerializer, SongSerializer
+from .serializers import RegisterSerializer, SongSerializer, PlaylistSerializer
 from .models import Song
 from .models import Playlist, PlaylistSong
 from .serializers import PlaylistSongSerializer
 
-class PlaylistSerializer(serializers.ModelSerializer):
-    songs = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Playlist
-        fields = ['id', 'name', 'songs']
-
-    def get_songs(self, obj):
-        # Fetch actual song objects for the playlist
-        songs = Song.objects.filter(song_playlists__playlist=obj)
-        return SongSerializer(songs, many=True).data
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -30,11 +19,14 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = RegisterSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
