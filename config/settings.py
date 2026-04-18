@@ -72,23 +72,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # DATABASE
 # ------------------------------------------------------------------------------
 
+# Use dj_database_url to parse the DATABASE_URL environment variable for production.
+# Falls back to local PostgreSQL if the environment variable is missing.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'music_db',
-        'USER': 'postgres',
-        'PASSWORD': 'Postgres@123',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-
-# Update database configuration from $DATABASE_URL (for Render production)
-if os.environ.get('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.config(
+    'default': dj_database_url.config(
+        default='postgresql://postgres:Postgres@123@localhost:5432/music_db',
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=True if os.environ.get('DATABASE_URL') else False
     )
+}
 
 
 # Password validation
