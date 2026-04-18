@@ -5,12 +5,13 @@ from .views import (
     PodcastListView, CartoonListView, AnimeListView
 )
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 urlpatterns = [
     # Auth
     path('register/', RegisterView.as_view()),
-    path('login/', TokenObtainPairView.as_view()), 
+    path('login/', csrf_exempt(TokenObtainPairView.as_view())), 
 
     # Song APIs
     path('songs/', SongListCreateView.as_view()),

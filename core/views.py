@@ -3,6 +3,8 @@ from rest_framework import status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 User = get_user_model()
 from .serializers import RegisterSerializer, SongSerializer
@@ -23,6 +25,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
         return SongSerializer(songs, many=True).data
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
