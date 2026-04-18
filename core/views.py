@@ -26,7 +26,10 @@ class RegisterView(APIView):
                 return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Diagnostic hint: Check if DATABASE_URL is in the environment
+            import os
+            db_status = "[Env: DB_LINK_FOUND]" if 'DATABASE_URL' in os.environ else "[Env: DB_LINK_MISSING]"
+            return Response({"error": f"{db_status} {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
