@@ -3,7 +3,7 @@ from .views import (
     PlaylistView, AddSongToPlaylistView, SyncLatestSongsView,
     ToggleLikeView, UserLikedSongsView, ResolveAudioView, 
     PodcastListView, CartoonListView, AnimeListView,
-    RedeployView,
+    RedeployView, SelfCheckView,
 )
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
@@ -29,4 +29,5 @@ urlpatterns = [
     path('cartoons/', CartoonListView.as_view()),
     path('anime/', AnimeListView.as_view()),
     path('redeploy/', RedeployView.as_view()),
+    path('self-check/', SelfCheckView.as_view()),
 ]

@@ -337,6 +337,46 @@ class ResolveAudioView(APIView):
             return Response({"error": "Could not resolve full audio"}, status=404)
 
 
+class SelfCheckView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        report = {
+            "database": "unknown",
+            "migrations": "unknown",
+            "song_count": 0,
+            "artist_count": 0,
+            "resolver_test": "unknown"
+        }
+
+        # Check DB
+        try:
+            from django.db import connection
+            connection.ensure_connection()
+            report["database"] = "connected"
+        except Exception as e:
+            report["database"] = f"error: {str(e)}"
+
+        # Check Models & Counts
+        try:
+            report["song_count"] = Song.objects.count()
+            report["artist_count"] = Artist.objects.count()
+            report["migrations"] = "applied"
+        except Exception as e:
+            report["migrations"] = f"error: {str(e)}"
+
+        # Check Resolver
+        try:
+            test_url = resolve_youtube_audio("Blinding Lights")
+            report["resolver_test"] = "working" if test_url else "failed (no URL returned)"
+            if test_url:
+                report["sample_url"] = test_url[:50] + "..."
+        except Exception as e:
+            report["resolver_test"] = f"error: {str(e)}"
+
+        return Response(report)
+
+
 class RedeployView(APIView):
     """Endpoint used to trigger a process exit so Render restarts the service.
     Call with a POST request. No auth required - keep the URL secret.
