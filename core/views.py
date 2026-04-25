@@ -309,6 +309,7 @@ class AnimeListView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
+
 class ResolveAudioView(APIView):
     permission_classes = [AllowAny]
 
@@ -331,4 +332,18 @@ class ResolveAudioView(APIView):
             return Response({"audio_url": audio_url})
         else:
             return Response({"error": "Could not resolve full audio"}, status=404)
+
+
+class RedeployView(APIView):
+    """Endpoint used to trigger a process exit so Render restarts the service.
+    Call with a POST request. No auth required - keep the URL secret.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Immediately exit the worker process; Render will start a fresh container.
+        import sys
+        sys.exit(0)
+        # Unreachable response kept for type checkers
+        return Response({"status": "restarting"})
             
