@@ -251,15 +251,26 @@ class UserLikedSongsView(APIView):
         return Response(song_ids)
 
 
+import threading
+
 class SyncLatestSongsView(APIView):
     permission_classes = [AllowAny] # Allow for demo/automation
 
     def post(self, request):
-        try:
-            call_command('sync_latest_songs')
-            return Response({"message": "Latest songs synced successfully!"})
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        def run_sync():
+            try:
+                from django.core.management import call_command
+                call_command('sync_latest_songs')
+            except Exception as e:
+                print(f"Background sync error: {e}")
+
+        # Start sync in a background thread to avoid request timeout
+        threading.Thread(target=run_sync).start()
+        
+        return Response({
+            "status": "success", 
+            "message": "Sync started in background! Your library will update shortly."
+        })
 
 
 from .utils.youtube_resolver import resolve_youtube_audio
@@ -308,9 +319,14 @@ class ResolveAudioView(APIView):
         if not title or not artist:
             return Response({"error": "title and artist are required"}, status=400)
         
-        query = f"{artist} - {title} official audio"
+        # Attempt 1: Artist + Title (Best match)
+        query = f"{artist} {title}"
         audio_url = resolve_youtube_audio(query)
         
+        # Attempt 2: Just Title (Fallback for misspelled artists)
+        if not audio_url:
+            audio_url = resolve_youtube_audio(title)
+
         if audio_url:
             return Response({"audio_url": audio_url})
         else:

@@ -8,18 +8,23 @@ def resolve_youtube_audio(query):
     audio stream URL. Now utilizes a reliable JioSaavn API to avoid 
     YouTube IP restrictions and 403 Forbidden errors on Render.
     """
+    import subprocess
     try:
-        url = f"https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query={urllib.parse.quote(query)}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        res = urllib.request.urlopen(req, timeout=8)
-        data = json.loads(res.read())
+        # Use yt-dlp to find the best audio-only stream URL from YouTube
+        # This is the most reliable way to get the FULL song
+        cmd = [
+            "yt-dlp",
+            "--get-url",
+            "--format", "bestaudio",
+            f"ytsearch1:{query}"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         
-        if data and data.get('data') and data['data'].get('results'):
-            song = data['data']['results'][0]
-            if 'downloadUrl' in song and isinstance(song['downloadUrl'], list):
-                highest_quality = song['downloadUrl'][-1]
-                return highest_quality.get('link') or highest_quality.get('url')
+        if result.returncode == 0:
+            url = result.stdout.strip()
+            if url:
+                return url
     except Exception as e:
-        print(f"Error resolving full audio: {e}")
+        print(f"yt-dlp resolution error: {e}")
         
     return None

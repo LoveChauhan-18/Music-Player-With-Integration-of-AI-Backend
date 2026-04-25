@@ -36,6 +36,7 @@ class Playlist(models.Model):
         related_name='playlists'
     )
     name = models.CharField(max_length=255)
+    songs = models.ManyToManyField(Song, through='PlaylistSong', related_name='playlists')
 
     def __str__(self):
         return self.name

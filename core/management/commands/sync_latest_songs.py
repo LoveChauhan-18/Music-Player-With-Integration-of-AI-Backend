@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Sync latest songs from iTunes API into the project database'
 
     def handle(self, *args, **options):
-        self.stdout.write('🚀 Starting bulk song sync from iTunes API...')
+        self.stdout.write('Starting bulk song sync from iTunes API...')
         
         categories = [
             {'name': 'Bollywood', 'terms': ['bollywood hindi hits', 'latest arijit singh', 'bollywood romantic'], 'country': 'in'},
@@ -73,6 +73,6 @@ class Command(BaseCommand):
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"    Error syncing {term}: {e}"))
             
-            self.stdout.write(self.style.SUCCESS(f"✅ Synced {cat_synced} songs for {cat['name']}"))
+            self.stdout.write(self.style.SUCCESS(f"Synced {cat_synced} songs for {cat['name']}"))
 
-        self.stdout.write(self.style.SUCCESS(f"✨ Successfully synced {total_synced} NEW songs across all categories!"))
+        self.stdout.write(self.style.SUCCESS(f"Successfully synced {total_synced} NEW songs across all categories!"))
