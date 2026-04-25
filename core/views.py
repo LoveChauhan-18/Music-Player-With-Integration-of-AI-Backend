@@ -42,15 +42,18 @@ class SongListCreateView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request):
-        query = request.GET.get('search')
+        try:
+            query = request.GET.get('search')
 
-        if query:
-            songs = Song.objects.filter(title__icontains=query)
-        else:
-            songs = Song.objects.all()
+            if query:
+                songs = Song.objects.filter(title__icontains=query)
+            else:
+                songs = Song.objects.all()
 
-        serializer = SongSerializer(songs, many=True)
-        return Response(serializer.data)
+            serializer = SongSerializer(songs, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
         serializer = SongSerializer(data=request.data)
