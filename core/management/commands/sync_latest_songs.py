@@ -52,16 +52,18 @@ class Command(BaseCommand):
                             # Get or create artist
                             artist, _ = Artist.objects.get_or_create(name=artist_name)
 
-                            # Check if song exists by title and artist
+                            # Check if song exists by external_id (iTunes trackId)
                             song, created = Song.objects.get_or_create(
-                                title=track_name, 
-                                artist=artist,
+                                external_id=str(track_id),
                                 defaults={
+                                    'title': track_name,
+                                    'artist': artist,
                                     'preview_url': preview_url,
                                     'artwork_url': artwork_url,
                                     'album': album_name,
                                     'genre': genre_name,
-                                    'plays': track.get('trackCount', 0) * 1000 # dummy play count based on some itunes data or random
+                                    'plays': track.get('trackCount', 0) * 1000,
+                                    'source': 'itunes'
                                 }
                             )
 
