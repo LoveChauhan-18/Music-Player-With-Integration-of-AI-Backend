@@ -71,6 +71,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -82,20 +84,20 @@ DATABASES = {
     }
 }
 
-# Automatically use DATABASE_URL if available (standard for Render/Heroku)
-if os.environ.get('DATABASE_URL'):
-    import dj_database_url
-    DATABASES['default'] = dj_database_url.config(
-        conn_max_age=600,
-        ssl_require=True
-    )
-elif os.environ.get('DATABASE_PUBLIC_URL'):
-    import dj_database_url
-    DATABASES['default'] = dj_database_url.config(
-        default=os.environ.get('DATABASE_PUBLIC_URL'),
-        conn_max_age=600,
-        ssl_require=True
-    )
+# Support multiple possible env var names for the database
+db_url = (
+    os.environ.get('DATABASE_URL') or 
+    os.environ.get('DATABASE_PUBLIC_URL') or 
+    os.environ.get('DATABASE_URL_INTERNAL') or 
+    os.environ.get('POSTGRES_URL')
+)
+
+if db_url:
+    DATABASES['default'] = dj_database_url.parse(db_url)
+    DATABASES['default']['CONN_MAX_AGE'] = 600
+    # Enable SSL for production databases
+    if 'localhost' not in db_url and '127.0.0.1' not in db_url:
+        DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
 
 # Password validation

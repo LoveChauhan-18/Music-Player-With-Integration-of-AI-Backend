@@ -341,12 +341,14 @@ class SelfCheckView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        import os
         report = {
             "database": "unknown",
             "migrations": "unknown",
             "song_count": 0,
             "artist_count": 0,
-            "resolver_test": "unknown"
+            "resolver_test": "unknown",
+            "env_keys": [k for k in os.environ.keys() if any(x in k for x in ['DB', 'DATABASE', 'POSTGRES', 'URL'])]
         }
 
         # Check DB
