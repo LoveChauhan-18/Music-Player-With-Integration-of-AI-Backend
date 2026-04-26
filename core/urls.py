@@ -25,6 +25,7 @@ urlpatterns = [
     path('songs/like/', ToggleLikeView.as_view()),
     path('songs/liked/', UserLikedSongsView.as_view()),
     path('songs/resolve-audio/', ResolveAudioView.as_view()),
+    path('resolve-audio/', ResolveAudioView.as_view()), # Alias for compatibility
     path('podcasts/', PodcastListView.as_view()),
     path('cartoons/', CartoonListView.as_view()),
     path('anime/', AnimeListView.as_view()),

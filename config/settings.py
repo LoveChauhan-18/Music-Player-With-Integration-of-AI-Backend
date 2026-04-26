@@ -84,13 +84,22 @@ DATABASES = {
     }
 }
 
-# Support multiple possible env var names for the database
-db_url = (
-    os.environ.get('DATABASE_URL') or 
-    os.environ.get('DATABASE_PUBLIC_URL') or 
-    os.environ.get('DATABASE_URL_INTERNAL') or 
-    os.environ.get('POSTGRES_URL')
-)
+# Extensive search for Database URL (Render, Heroku, etc.)
+DB_URL_VARS = [
+    'DATABASE_URL', 
+    'DATABASE_PUBLIC_URL', 
+    'DATABASE_URL_INTERNAL', 
+    'POSTGRES_URL',
+    'DB_URL'
+]
+
+db_url = None
+for var in DB_URL_VARS:
+    val = os.environ.get(var)
+    if val:
+        db_url = val
+        print(f"✅ Found database configuration in {var}")
+        break
 
 if db_url:
     DATABASES['default'] = dj_database_url.parse(db_url)
@@ -98,6 +107,9 @@ if db_url:
     # Enable SSL for production databases
     if 'localhost' not in db_url and '127.0.0.1' not in db_url:
         DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
+else:
+    print("⚠️ WARNING: No production database URL found. Defaulting to localhost.")
+    print(f"Available env keys for audit: {[k for k in os.environ.keys() if any(x in k for x in ['DB', 'DATABASE', 'POSTGRES', 'URL'])]}")
 
 
 # Password validation
