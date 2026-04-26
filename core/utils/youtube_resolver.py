@@ -32,26 +32,34 @@ def resolve_youtube_audio(query):
 
     # Attempt 2: Piped API (Highly reliable fallback)
     try:
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
         piped_instances = [
             "https://pipedapi.kavin.rocks",
             "https://api.piped.victr.me",
             "https://pipedapi.darkness.services"
         ]
         for instance in piped_instances:
-            search_url = f"{instance}/search?q={urllib.parse.quote(query)}&filter=videos"
-            req = urllib.request.Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                search_data = json.loads(response.read().decode())
-                if search_data.get('items'):
-                    video_id = search_data['items'][0].get('url', '').split('=')[-1]
-                    # Now get streams for this video
-                    stream_url = f"{instance}/streams/{video_id}"
-                    with urllib.request.urlopen(stream_url, timeout=5) as stream_resp:
-                        stream_data = json.loads(stream_resp.read().decode())
-                        # Find best audio stream
-                        audio_streams = stream_data.get('audioStreams', [])
-                        if audio_streams:
-                            return audio_streams[0]['url']
+            try:
+                search_url = f"{instance}/search?q={urllib.parse.quote(query)}&filter=videos"
+                req = urllib.request.Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5, context=ctx) as response:
+                    search_data = json.loads(response.read().decode())
+                    if search_data.get('items'):
+                        video_id = search_data['items'][0].get('url', '').split('=')[-1]
+                        # Now get streams for this video
+                        stream_url = f"{instance}/streams/{video_id}"
+                        with urllib.request.urlopen(stream_url, timeout=5, context=ctx) as stream_resp:
+                            stream_data = json.loads(stream_resp.read().decode())
+                            # Find best audio stream
+                            audio_streams = stream_data.get('audioStreams', [])
+                            if audio_streams:
+                                return audio_streams[0]['url']
+            except:
+                continue
     except Exception as e:
         print(f"Piped resolution error: {e}")
 

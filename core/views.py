@@ -361,6 +361,7 @@ class SelfCheckView(APIView):
 
         # Check Models & Counts
         try:
+            from core.models import Song, Artist
             report["song_count"] = Song.objects.count()
             report["artist_count"] = Artist.objects.count()
             report["migrations"] = "applied"
