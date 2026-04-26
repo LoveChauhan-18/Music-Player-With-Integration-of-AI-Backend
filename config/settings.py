@@ -68,9 +68,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# ------------------------------------------------------------------------------
-# DATABASE
-# ------------------------------------------------------------------------------
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -83,20 +82,20 @@ DATABASES = {
     }
 }
 
-# Potential environment variable names for the database connection string
-DATABASE_KEYS = ['DATABASE_URL', 'DATABASE_PUBLIC_URL', 'DATABASE_URL_INTERNAL', 'POSTGRES_URL']
-found_url = None
-
-for key in DATABASE_KEYS:
-    if os.environ.get(key):
-        found_url = os.environ.get(key)
-        break
-
-if found_url:
-    db_config = dj_database_url.parse(found_url)
-    DATABASES['default'] = db_config
-    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
-    DATABASES['default']['CONN_MAX_AGE'] = 600
+# Automatically use DATABASE_URL if available (standard for Render/Heroku)
+if os.environ.get('DATABASE_URL'):
+    import dj_database_url
+    DATABASES['default'] = dj_database_url.config(
+        conn_max_age=600,
+        ssl_require=True
+    )
+elif os.environ.get('DATABASE_PUBLIC_URL'):
+    import dj_database_url
+    DATABASES['default'] = dj_database_url.config(
+        default=os.environ.get('DATABASE_PUBLIC_URL'),
+        conn_max_age=600,
+        ssl_require=True
+    )
 
 
 # Password validation
