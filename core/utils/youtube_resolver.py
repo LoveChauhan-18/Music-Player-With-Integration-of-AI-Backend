@@ -87,29 +87,48 @@ def resolve_youtube_audio(query):
 
     # Attempt 3: JioSaavn Unofficial API (Final fallback)
     print("📡 Trying JioSaavn fallback...")
+    # These instances are known to be more reliable for full-length songs
     saavn_instances = [
-        "https://saavn.me",
+        "https://saavn.dev/api",
+        "https://jiosaavn-api-beta-three.vercel.app/api",
         "https://jiosaavn-api-v3.vercel.app",
-        "https://jiosaavn-api.vercel.app",
-        "https://jiosaavn-api-beta.vercel.app"
+        "https://saavn.me",
+        "https://jiosaavn-api.vercel.app"
     ]
     
     for instance in saavn_instances:
         try:
             search_query = urllib.parse.quote(query)
-            search_url = f"{instance}/search/songs?query={search_query}"
+            # Handle instances that need /search and those that need /search/songs
+            if "saavn.dev" in instance or "beta-three" in instance:
+                search_url = f"{instance}/search/songs?query={search_query}"
+            else:
+                search_url = f"{instance}/search/songs?query={search_query}"
+                
             req = urllib.request.Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=6) as response:
+            with urllib.request.urlopen(req, timeout=8) as response:
                 data = json.loads(response.read().decode())
-                # Some APIs return different structures
-                results = data.get('data', {}).get('results') or data.get('results')
-                if results:
+                
+                # Normalize response structure
+                results = None
+                if isinstance(data.get('data'), dict):
+                    results = data['data'].get('results')
+                elif isinstance(data.get('data'), list):
+                    results = data['data']
+                else:
+                    results = data.get('results')
+
+                if results and len(results) > 0:
                     track = results[0]
                     download_urls = track.get('downloadUrl') or track.get('download_url')
                     if download_urls:
-                        # Return the highest quality link (usually the last one)
-                        print(f"✅ Resolved via JioSaavn ({instance})")
-                        return download_urls[-1]['link'] if isinstance(download_urls[-1], dict) else download_urls[-1]
+                        # Find the highest quality (usually 320kbps at the end of the list)
+                        if isinstance(download_urls, list) and len(download_urls) > 0:
+                            best_link = download_urls[-1]
+                            final_url = best_link.get('link') if isinstance(best_link, dict) else best_link
+                            if final_url:
+                                print(f"✅ Resolved via JioSaavn ({instance})")
+                                return final_url
         except Exception as e:
             print(f"⚠️ JioSaavn instance {instance} failed: {e}")
             continue
