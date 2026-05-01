@@ -472,13 +472,20 @@ class GenerateVocalView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        import os, json, urllib.request
+        import os, json, urllib.request, base64
         api_key = os.environ.get('ELEVENLABS_API_KEY')
-        voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM') # Default 'Rachel'
+        voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')
         text = request.data.get('text', '')
 
+        # Remove 'eleven_' prefix if present from frontend
+        if voice_id.startswith('eleven_'):
+            voice_id = voice_id.replace('eleven_', '')
+
         if not api_key:
-            return Response({"error": "ELEVENLABS_API_KEY not configured on server."}, status=500)
+            return Response({
+                "error": "ELEVENLABS_API_KEY not found in Render Environment Variables.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            }, status=200) # Return 200 so UI doesn't crash, but shows error
 
         if not text:
             return Response({"error": "text is required"}, status=400)
@@ -492,25 +499,30 @@ class GenerateVocalView(APIView):
             }
             payload = {
                 "text": text,
-                "model_id": "eleven_monolingual_v1",
-                "voice_settings": {"stability": 0.5, "similarity_boost": 0.5}
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
             }
             
             data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(url, data=data, headers=headers)
             
-            # Since this returns binary audio, in a real app we might upload this 
-            # to S3 and return the URL. For now, we'll return a simulated success.
-            # (Fetching the full audio here and sending it back via Response is 
-            #  too heavy for a JSON API view).
-            
-            return Response({
-                "status": "success",
-                "message": "Vocal track generated! (Simulated link below)",
-                "audio_url": "https://elevenlabs.io/sample-vocal.mp3"
-            })
+            with urllib.request.urlopen(req) as response:
+                audio_data = response.read()
+                # Encode binary audio to base64 to send in JSON
+                b64_audio = base64.b64encode(audio_data).decode('utf-8')
+                audio_url = f"data:audio/mpeg;base64,{b64_audio}"
+                
+                return Response({
+                    "status": "success",
+                    "message": "Real AI Vocal Generated!",
+                    "audio_url": audio_url
+                })
         except Exception as e:
-            return Response({"error": str(e)}, status=502)
+            return Response({
+                "error": str(e),
+                "note": "Falling back to mock audio due to API error.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            }, status=200)
 
 
 class RedeployView(APIView):
