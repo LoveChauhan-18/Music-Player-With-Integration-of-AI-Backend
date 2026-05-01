@@ -499,7 +499,7 @@ class GenerateVocalView(APIView):
             }
             payload = {
                 "text": text,
-                "model_id": "eleven_multilingual_v2",
+                "model_id": "eleven_monolingual_v1",
                 "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
             }
             
