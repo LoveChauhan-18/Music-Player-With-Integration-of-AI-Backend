@@ -489,6 +489,10 @@ class GenerateVocalView(APIView):
         voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')
         text = request.data.get('text', '')
 
+        # Remove 'eleven_' prefix if present from frontend
+        if voice_id.startswith('eleven_'):
+            voice_id = voice_id.replace('eleven_', '')
+
         if not api_key:
             return Response({
                 "error": "ELEVENLABS_API_KEY not found. Please check Render settings.",
