@@ -144,6 +144,15 @@ class AddSongToPlaylistView(APIView):
         if not song:
             song = Song.objects.filter(external_id=str(song_id)).first()
 
+        # 4.5 Try by title and artist (semantic deduplication)
+        if not song and song_metadata:
+            title = song_metadata.get('title')
+            artist_name = song_metadata.get('artist')
+            if title and artist_name:
+                if isinstance(artist_name, dict):
+                    artist_name = artist_name.get('name')
+                song = Song.objects.filter(title__iexact=title, artist__name__iexact=artist_name).first()
+
         # 5. Create the song if metadata is provided (use get_or_create to avoid unique violations)
         if not song and song_metadata:
             from .models import Artist
@@ -203,6 +212,15 @@ class ToggleLikeView(APIView):
         if not song:
             song = Song.objects.filter(external_id=str(song_id)).first()
 
+        # 2.5 Try by title and artist (semantic deduplication)
+        if not song and song_metadata:
+            title = song_metadata.get('title')
+            artist_name = song_metadata.get('artist')
+            if title and artist_name:
+                if isinstance(artist_name, dict):
+                    artist_name = artist_name.get('name')
+                song = Song.objects.filter(title__iexact=title, artist__name__iexact=artist_name).first()
+
         # 3. If not found and metadata provided, get or create it
         if not song and song_metadata:
             from .models import Artist
@@ -256,16 +274,34 @@ class UserLikedSongsView(APIView):
 
 import threading
 
+# Global lock and flag to prevent concurrent sync operations
+_sync_lock = threading.Lock()
+_sync_running = False
+
 class SyncLatestSongsView(APIView):
     permission_classes = [AllowAny] # Allow for demo/automation
 
     def post(self, request):
+        global _sync_running
+        
+        with _sync_lock:
+            if _sync_running:
+                return Response({
+                    "status": "info",
+                    "message": "Sync is already in progress. Please wait a moment."
+                }, status=status.HTTP_200_OK)
+            _sync_running = True
+
         def run_sync():
+            global _sync_running
             try:
                 from django.core.management import call_command
                 call_command('sync_latest_songs')
             except Exception as e:
                 print(f"Background sync error: {e}")
+            finally:
+                with _sync_lock:
+                    _sync_running = False
 
         # Start sync in a background thread to avoid request timeout
         threading.Thread(target=run_sync).start()

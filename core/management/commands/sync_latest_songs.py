@@ -1,8 +1,8 @@
 import requests
 from django.core.management.base import BaseCommand
 from django.core.files.base import ContentFile
+from django.db import migrations, models, transaction, IntegrityError
 from core.models import Artist, Song
-from django.utils.text import slugify
 
 class Command(BaseCommand):
     help = 'Sync latest songs from iTunes API into the project database'
@@ -52,20 +52,33 @@ class Command(BaseCommand):
                             # Get or create artist
                             artist, _ = Artist.objects.get_or_create(name=artist_name)
 
-                            # Check if song exists by external_id (iTunes trackId)
-                            song, created = Song.objects.get_or_create(
-                                external_id=str(track_id),
-                                defaults={
-                                    'title': track_name,
-                                    'artist': artist,
-                                    'preview_url': preview_url,
-                                    'artwork_url': artwork_url,
-                                    'album': album_name,
-                                    'genre': genre_name,
-                                    'plays': track.get('trackCount', 0) * 1000,
-                                    'source': 'itunes'
-                                }
-                            )
+                            # Semantic Deduplication: Check if song exists by Title and Artist first
+                            # This handles cases where songs were added without an iTunes ID
+                            song = Song.objects.filter(title__iexact=track_name, artist=artist).first()
+                            
+                            if not song:
+                                try:
+                                    with transaction.atomic():
+                                        # Check if song exists by external_id (iTunes trackId)
+                                        song, created = Song.objects.get_or_create(
+                                            external_id=str(track_id),
+                                            defaults={
+                                                'title': track_name,
+                                                'artist': artist,
+                                                'preview_url': preview_url,
+                                                'artwork_url': artwork_url,
+                                                'album': album_name,
+                                                'genre': genre_name,
+                                                'plays': track.get('trackCount', 0) * 1000,
+                                                'source': 'itunes'
+                                            }
+                                        )
+                                except IntegrityError:
+                                    # This handles race conditions where another thread created it
+                                    song = Song.objects.filter(external_id=str(track_id)).first()
+                                    created = False
+                            else:
+                                created = False
 
                             if created:
                                 cat_synced += 1
