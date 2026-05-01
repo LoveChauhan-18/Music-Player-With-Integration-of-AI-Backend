@@ -79,24 +79,60 @@ def resolve_youtube_audio(query):
     def check_saavn(instance):
         try:
             search_query = urllib.parse.quote(query)
-            search_url = f"{instance}/search/songs?query={search_query}"
+            # Try v3 search style
+            search_url = f"{instance}/search?query={search_query}"
             req = urllib.request.Request(search_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=6) as response:
+            with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
-                results = None
-                if isinstance(data.get('data'), dict):
-                    results = data['data'].get('results')
-                elif isinstance(data.get('data'), list):
-                    results = data['data']
-                else:
-                    results = data.get('results')
-
+                results = data.get('data', {}).get('results') or data.get('results')
                 if results and len(results) > 0:
-                    track = results[0]
-                    download_urls = track.get('downloadUrl') or track.get('download_url')
-                    if download_urls and isinstance(download_urls, list) and len(download_urls) > 0:
-                        best_link = download_urls[-1]
-                        return best_link.get('link') if isinstance(best_link, dict) else best_link
+                    song_id = results[0].get('id')
+                    if song_id:
+                        # Try /song?id= (v3)
+                        try:
+                            details_url = f"{instance}/song?id={song_id}"
+                            req_details = urllib.request.Request(details_url, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(req_details, timeout=5) as resp_details:
+                                details_data = json.loads(resp_details.read().decode())
+                                media = details_data.get('media_url') or details_data.get('download_url')
+                                if media:
+                                    if isinstance(media, list) and len(media) > 0:
+                                        best = media[-1]
+                                        return best.get('link') if isinstance(best, dict) else best
+                                    elif isinstance(media, str):
+                                        return media
+                        except Exception:
+                            pass
+                        
+                        # Try /songs?id= (v4)
+                        try:
+                            details_url = f"{instance}/songs?id={song_id}"
+                            req_details = urllib.request.Request(details_url, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(req_details, timeout=5) as resp_details:
+                                details_data = json.loads(resp_details.read().decode())
+                                track_results = details_data.get('data') or details_data.get('results')
+                                if track_results:
+                                    track = track_results[0] if isinstance(track_results, list) else track_results
+                                    urls = track.get('downloadUrl') or track.get('download_url')
+                                    if urls and isinstance(urls, list) and len(urls) > 0:
+                                        best = urls[-1]
+                                        return best.get('link') if isinstance(best, dict) else best
+                        except Exception:
+                            pass
+
+            # Fallback to direct /search/songs?query= (older v4)
+            search_url_2 = f"{instance}/search/songs?query={search_query}"
+            req2 = urllib.request.Request(search_url_2, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req2, timeout=5) as response2:
+                data2 = json.loads(response2.read().decode())
+                results2 = data2.get('data', {}).get('results') or data2.get('results')
+                if results2 and len(results2) > 0:
+                    track = results2[0]
+                    urls = track.get('downloadUrl') or track.get('download_url')
+                    if urls and isinstance(urls, list) and len(urls) > 0:
+                        best = urls[-1]
+                        return best.get('link') if isinstance(best, dict) else best
+
         except Exception:
             pass
         return None
