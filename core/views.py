@@ -472,7 +472,7 @@ class GenerateVocalView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        import os, json, urllib.request, base64
+        import os, json, urllib.request, urllib.error, base64
         api_key = os.environ.get('ELEVENLABS_API_KEY')
         voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')
         text = request.data.get('text', '')
@@ -517,10 +517,21 @@ class GenerateVocalView(APIView):
                     "message": "Real AI Vocal Generated!",
                     "audio_url": audio_url
                 })
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode()
+            try:
+                error_json = json.loads(error_body)
+                msg = error_json.get('detail', {}).get('message', error_body)
+            except:
+                msg = error_body
+            
+            return Response({
+                "error": f"ElevenLabs API Error: {msg}",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            }, status=200)
         except Exception as e:
             return Response({
                 "error": str(e),
-                "note": "Falling back to mock audio due to API error.",
                 "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
             }, status=200)
 
