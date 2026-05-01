@@ -22,7 +22,7 @@ def resolve_youtube_audio(query):
             "--format", "bestaudio",
             f"ytsearch1:{query}"
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
         
         if result.returncode == 0:
             url = result.stdout.strip()
