@@ -520,6 +520,7 @@ class GenerateVocalView(APIView):
             
             with urllib.request.urlopen(req) as response:
                 audio_data = response.read()
+                print(f"🎤 AI VOICE GENERATED: {len(audio_data)} bytes received.")
                 # Encode binary audio to base64 to send in JSON
                 b64_audio = base64.b64encode(audio_data).decode('utf-8')
                 audio_url = f"data:audio/mpeg;base64,{b64_audio}"
