@@ -2,7 +2,7 @@ from .views import (
     RegisterView, SongListCreateView, SongDetailView, 
     PlaylistView, AddSongToPlaylistView, SyncLatestSongsView,
     ToggleLikeView, UserLikedSongsView, ResolveAudioView,
-    ProxyAudioView,
+    ProxyAudioView, ElevenLabsVoiceView, GenerateVocalView,
     PodcastListView, CartoonListView, AnimeListView,
     RedeployView, SelfCheckView,
 )
@@ -37,4 +37,6 @@ urlpatterns = [
     path('redeploy/', RedeployView.as_view()),
     path('self-check/', SelfCheckView.as_view()),
     path('proxy-audio/', ProxyAudioView.as_view()),
+    path('ai/voices/', ElevenLabsVoiceView.as_view()),
+    path('ai/generate-vocal/', GenerateVocalView.as_view()),
 ]
