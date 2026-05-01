@@ -473,19 +473,27 @@ class GenerateVocalView(APIView):
 
     def post(self, request):
         import os, json, urllib.request, urllib.error, base64
+        
+        # Try to find the key even if there are accidental spaces in the name
         api_key = os.environ.get('ELEVENLABS_API_KEY')
+        if not api_key:
+            # Fallback search in case of typos like " ELEVENLABS_API_KEY "
+            for k, v in os.environ.items():
+                if 'ELEVENLABS' in k.upper() and 'API' in k.upper() and 'KEY' in k.upper():
+                    api_key = v
+                    break
+        
+        if api_key:
+            api_key = api_key.strip() # Remove any accidental spaces in the value
+            
         voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')
         text = request.data.get('text', '')
 
-        # Remove 'eleven_' prefix if present from frontend
-        if voice_id.startswith('eleven_'):
-            voice_id = voice_id.replace('eleven_', '')
-
         if not api_key:
             return Response({
-                "error": "ELEVENLABS_API_KEY not found in Render Environment Variables.",
+                "error": "ELEVENLABS_API_KEY not found. Please check Render settings.",
                 "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
-            }, status=200) # Return 200 so UI doesn't crash, but shows error
+            }, status=200)
 
         if not text:
             return Response({"error": "text is required"}, status=400)
