@@ -1,7 +1,8 @@
 from .views import (
     RegisterView, SongListCreateView, SongDetailView, 
     PlaylistView, AddSongToPlaylistView, SyncLatestSongsView,
-    ToggleLikeView, UserLikedSongsView, ResolveAudioView, 
+    ToggleLikeView, UserLikedSongsView, ResolveAudioView,
+    ProxyAudioView,
     PodcastListView, CartoonListView, AnimeListView,
     RedeployView, SelfCheckView,
 )
@@ -35,4 +36,5 @@ urlpatterns = [
     path('anime/', AnimeListView.as_view()),
     path('redeploy/', RedeployView.as_view()),
     path('self-check/', SelfCheckView.as_view()),
+    path('proxy-audio/', ProxyAudioView.as_view()),
 ]

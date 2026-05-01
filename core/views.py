@@ -317,24 +317,81 @@ class ResolveAudioView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        import urllib.parse
         title = request.data.get('title')
         artist = request.data.get('artist')
-        
+
         if not title or not artist:
             return Response({"error": "title and artist are required"}, status=400)
-        
+
         # Attempt 1: Artist + Title (Best match)
         query = f"{artist} {title}"
         audio_url = resolve_youtube_audio(query)
-        
+
         # Attempt 2: Just Title (Fallback for misspelled artists)
         if not audio_url:
             audio_url = resolve_youtube_audio(title)
 
         if audio_url:
+            # If the URL is a direct CDN link (not YouTube/googlevideo), proxy it
+            # through our backend to avoid CORS/404 issues on the browser
+            is_youtube = "googlevideo.com" in audio_url or "youtube.com" in audio_url
+            if not is_youtube:
+                encoded = urllib.parse.quote(audio_url, safe='')
+                base = request.build_absolute_uri('/api/proxy-audio/')
+                audio_url = f"{base}?url={encoded}"
             return Response({"audio_url": audio_url})
         else:
             return Response({"error": "Could not resolve full audio"}, status=404)
+
+
+class ProxyAudioView(APIView):
+    """Streams audio from a third-party URL through the Django backend.
+    This bypasses CORS/IP restrictions on CDN URLs (e.g. JioSaavn)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        import urllib.request, urllib.parse
+        from django.http import StreamingHttpResponse
+
+        url = request.query_params.get('url', '').strip()
+        if not url:
+            return Response({'error': 'url query param required'}, status=400)
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Referer': 'https://www.jiosaavn.com/',
+            'Origin': 'https://www.jiosaavn.com',
+        }
+        # Forward Range header so seeking works
+        if request.headers.get('Range'):
+            headers['Range'] = request.headers['Range']
+
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            upstream = urllib.request.urlopen(req, timeout=30)
+
+            content_type = upstream.headers.get('Content-Type', 'audio/mpeg')
+            status_code = 206 if request.headers.get('Range') else 200
+
+            def stream():
+                while True:
+                    chunk = upstream.read(32768)  # 32 KB chunks
+                    if not chunk:
+                        break
+                    yield chunk
+
+            response = StreamingHttpResponse(stream(), content_type=content_type, status=status_code)
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Accept-Ranges'] = 'bytes'
+            if upstream.headers.get('Content-Length'):
+                response['Content-Length'] = upstream.headers['Content-Length']
+            if upstream.headers.get('Content-Range'):
+                response['Content-Range'] = upstream.headers['Content-Range']
+            return response
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=502)
 
 
 class SelfCheckView(APIView):
